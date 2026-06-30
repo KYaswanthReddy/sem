@@ -1,0 +1,14 @@
+\appendices
+\section{Proofs and Gradient Derivations}
+\label{sec:appendix_a}
+
+We analyze the gradient updates of the AdaLN3d modulation parameters. Let $\mathbf{y}_i = (\mathbf{1} + \mathbf{\gamma}_i) \odot \hat{\mathbf{V}}_i + \mathbf{\beta}_i$ be the modulated 3D convolution representation. The gradients with respect to the scale parameters $\mathbf{\gamma}_i$ and shift parameters $\mathbf{\beta}_i$ are derived as:
+\begin{equation}
+\frac{\partial \mathcal{L}}{\partial \mathbf{\gamma}_i} = \frac{\partial \mathcal{L}}{\partial \mathbf{y}_i} \odot \hat{\mathbf{V}}_i
+\label{eq:grad_gamma}
+\end{equation}
+\begin{equation}
+\frac{\partial \mathcal{L}}{\partial \mathbf{\beta}_i} = \frac{\partial \mathcal{L}}{\partial \mathbf{y}_i}
+\label{eq:grad_beta}
+\end{equation}
+Since the scale and shift parameters are bounded during backpropagation using clamping constraints, this modulation step stabilizes generative updates on deep 3D networks and prevents gradient explosion.

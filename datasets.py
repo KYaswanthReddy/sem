@@ -307,20 +307,21 @@ def get_dataset(dataset_name, target_folder="./", datasets=DATASETS_CONFIG):
         # False-color bands similar to paper visualization
         rgb_bands = [90, 40, 10]
 
-        gt = scipy.io.loadmat(folder + 'Dioni_gt.mat')['map']
-
-        # -------------------------------------------------
-        # Re-map Dioni labels to continuous 12-class setup
-        # -------------------------------------------------
-
-        valid_classes = [1,2,3,4,5,7,9,10,11,12,13,14]
-
-        new_gt = np.zeros_like(gt, dtype=np.int64)
-
-        for new_label, old_label in enumerate(valid_classes, start=1):
-            new_gt[gt == old_label] = new_label
-
-        gt = new_gt
+        # Use standard out68 mapped ground truth if available
+        out68_path = folder + 'Dioni_gt_out68.mat'
+        if os.path.exists(out68_path):
+            gt = scipy.io.loadmat(out68_path)['map']
+            gt = np.int64(gt)
+        else:
+            gt = scipy.io.loadmat(folder + 'Dioni_gt.mat')['map']
+            # -------------------------------------------------
+            # Re-map Dioni labels to continuous 12-class setup
+            # -------------------------------------------------
+            valid_classes = [1,2,3,4,5,7,9,10,11,12,13,14]
+            new_gt = np.zeros_like(gt, dtype=np.int64)
+            for new_label, old_label in enumerate(valid_classes, start=1):
+                new_gt[gt == old_label] = new_label
+            gt = new_gt
 
         # -------------------------------------------------
         # Common class names (same as paper)
@@ -348,26 +349,26 @@ def get_dataset(dataset_name, target_folder="./", datasets=DATASETS_CONFIG):
 
         rgb_bands = [90, 40, 10]
 
-        gt = scipy.io.loadmat(folder + 'Loukia_gt.mat')['map']
+        # Use standard out68 mapped ground truth if available
+        out68_path = folder + 'Loukia_gt_out68.mat'
+        if os.path.exists(out68_path):
+            gt = scipy.io.loadmat(out68_path)['map']
+            gt = np.int64(gt)
+        else:
+            gt = scipy.io.loadmat(folder + 'Loukia_gt.mat')['map']
+            # -------------------------------------------------
+            # Remove non-common classes
+            # -------------------------------------------------
+            gt[(gt == 6) | (gt == 7)] = 0
 
-        # -------------------------------------------------
-        # Remove non-common classes
-        # -------------------------------------------------
-
-        gt[(gt == 6) | (gt == 7)] = 0
-
-        # -------------------------------------------------
-        # Re-map Loukia labels to common 12-class setup
-        # -------------------------------------------------
-
-        valid_classes = [1,2,3,4,5,8,9,10,11,12,13,14]
-
-        new_gt = np.zeros_like(gt, dtype=np.int64)
-
-        for new_label, old_label in enumerate(valid_classes, start=1):
-            new_gt[gt == old_label] = new_label
-
-        gt = new_gt
+            # -------------------------------------------------
+            # Re-map Loukia labels to common 12-class setup
+            # -------------------------------------------------
+            valid_classes = [1,2,3,4,5,8,9,10,11,12,13,14]
+            new_gt = np.zeros_like(gt, dtype=np.int64)
+            for new_label, old_label in enumerate(valid_classes, start=1):
+                new_gt[gt == old_label] = new_label
+            gt = new_gt
 
         label_values = [
             "Dense Urban Fabric",

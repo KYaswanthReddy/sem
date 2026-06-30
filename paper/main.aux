@@ -1,0 +1,108 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{he2017deep}
+\citation{ehsnet2023}
+\citation{wang2022domain}
+\citation{li2022progressive}
+\citation{radford2021learning}
+\@writefile{toc}{\contentsline {section}{\numberline {I}Introduction}{1}{section.1}\protected@file@percent }
+\newlabel{sec:intro}{{I}{1}{Introduction}{section.1}{}}
+\citation{wang2022domain}
+\citation{sdenet2022}
+\citation{llurnet2023}
+\citation{fdgnet2022}
+\citation{s2amsnet2022}
+\citation{li2022progressive}
+\@writefile{toc}{\contentsline {section}{\numberline {II}Related Work}{2}{section.2}\protected@file@percent }
+\newlabel{sec:related}{{II}{2}{Related Work}{section.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-A}}Domain Generalization for Hyperspectral Image Classification}{2}{subsection.2.1}\protected@file@percent }
+\citation{radford2021learning}
+\citation{ehsnet2023}
+\citation{acb2023}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-B}}Vision-Language Learning for Hyperspectral Image Classification}{3}{subsection.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-C}}Progressive Generation and Semantic Alignment}{3}{subsection.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {III}Methodology}{3}{section.3}\protected@file@percent }
+\newlabel{sec:methodology}{{III}{3}{Methodology}{section.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-A}}Overall Framework}{3}{subsection.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-B}}Problem Formulation}{3}{subsection.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-C}}Progressive Spectral Downsampling}{3}{subsection.3.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Detailed schematic flow of the proposed Semantic-Guided Progressive Domain Generalization framework. Stage 1 pre-trains progressive semantic-aware generators and discriminators on downsampled spectral steps. Stage 2 trains the final classifier on a joint set of original and generated patches using Sharpness-Aware Minimization (SAM) and cross-modal contrastive alignment.}}{4}{figure.caption.1}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{fig:architecture}{{1}{4}{Detailed schematic flow of the proposed Semantic-Guided Progressive Domain Generalization framework. Stage 1 pre-trains progressive semantic-aware generators and discriminators on downsampled spectral steps. Stage 2 trains the final classifier on a joint set of original and generated patches using Sharpness-Aware Minimization (SAM) and cross-modal contrastive alignment}{figure.caption.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-D}}Semantic Guidance}{4}{subsection.3.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-E}}Semantic-Aware Progressive Generator}{4}{subsection.3.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {III-E}1}Multi-Head Cross Attention}{4}{subsubsection.3.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {III-E}2}Semantic Fusion}{5}{subsubsection.3.5.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {III-E}3}Adaptive AdaLN}{5}{subsubsection.3.5.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {III-E}4}Progressive Reconstruction}{5}{subsubsection.3.5.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-F}}Sub-Discriminator}{5}{subsection.3.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-G}}Semantic Alignment}{5}{subsection.3.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-H}}Two-Stage Training}{5}{subsection.3.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {III-H}1}Stage 1: Generator Pre-training}{5}{subsubsection.3.8.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {III-H}2}Stage 2: Classifier Training}{5}{subsubsection.3.8.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-I}}Testing / Inference}{5}{subsection.3.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-J}}Training Algorithm}{6}{subsection.3.10}\protected@file@percent }
+\newlabel{sec:algorithm}{{\mbox  {III-J}}{6}{Training Algorithm}{subsection.3.10}{}}
+\@writefile{loa}{\contentsline {algorithm}{\numberline {1}{\ignorespaces Two-Stage Training Procedure of SG-PMG}}{6}{algorithm.1}\protected@file@percent }
+\newlabel{alg:training}{{1}{6}{Two-Stage Training Procedure of SG-PMG}{algorithm.1}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {IV}Experimental Results and Analysis}{6}{section.4}\protected@file@percent }
+\newlabel{sec:experiments}{{IV}{6}{Experimental Results and Analysis}{section.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-A}}Datasets}{6}{subsection.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-A}1}Pavia University $\to $ Pavia Center (PaviaU $\to $ PaviaC)}{6}{subsubsection.4.1.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {I}{\ignorespaces Land Cover Classes and the Number of Samples for the Pavia Dataset.}}{6}{table.caption.2}\protected@file@percent }
+\newlabel{tab:pavia_classes}{{I}{6}{Land Cover Classes and the Number of Samples for the Pavia Dataset}{table.caption.2}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-A}2}Houston 2013 $\to $ Houston 2018 (Houston13 $\to $ Houston18)}{6}{subsubsection.4.1.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {II}{\ignorespaces Land Cover Classes and the Number of Samples for the Houston Dataset.}}{6}{table.caption.3}\protected@file@percent }
+\newlabel{tab:houston_classes}{{II}{6}{Land Cover Classes and the Number of Samples for the Houston Dataset}{table.caption.3}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-A}3}Dioni $\to $ Loukia (HyRANK)}{6}{subsubsection.4.1.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-B}}Experimental Setting}{6}{subsection.4.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {III}{\ignorespaces Land Cover Classes and the Number of Samples for the HyRANK Dataset.}}{7}{table.caption.4}\protected@file@percent }
+\newlabel{tab:hyrank_classes}{{III}{7}{Land Cover Classes and the Number of Samples for the HyRANK Dataset}{table.caption.4}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {IV}{\ignorespaces Key Hyperparameter Settings of the Proposed Model.}}{7}{table.caption.5}\protected@file@percent }
+\newlabel{tab:hyperparameters}{{IV}{7}{Key Hyperparameter Settings of the Proposed Model}{table.caption.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-C}}Performance Analysis}{7}{subsection.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-D}}Parameter Analysis}{7}{subsection.4.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-E}}Ablations and Analysis}{7}{subsection.4.5}\protected@file@percent }
+\newlabel{sec:ablation}{{\mbox  {IV-E}}{7}{Ablations and Analysis}{subsection.4.5}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {V}{\ignorespaces Ablation Study of Individual Components on PaviaU $\to $ PaviaC. ``\textit  {w/o}'' denotes removal of the corresponding component.}}{7}{table.caption.10}\protected@file@percent }
+\newlabel{tab:ablation_components}{{V}{7}{Ablation Study of Individual Components on PaviaU $\to $ PaviaC. ``\textit {w/o}'' denotes removal of the corresponding component}{table.caption.10}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {VI}{\ignorespaces Classification Performance on PaviaU $\to $ PaviaC Under Varying Numbers of Labeled Source-Domain Samples Per Class.}}{7}{table.caption.11}\protected@file@percent }
+\newlabel{tab:ablation_samples}{{VI}{7}{Classification Performance on PaviaU $\to $ PaviaC Under Varying Numbers of Labeled Source-Domain Samples Per Class}{table.caption.11}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-E}1}Effect of Semantic Guidance}{7}{subsubsection.4.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-E}2}Effect of Multi-Head Cross Attention}{7}{subsubsection.4.5.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-E}3}Effect of Adaptive AdaLN}{7}{subsubsection.4.5.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Classification maps for the Houston 2013 $\to $ Houston 2018 transfer task. (a) Ground truth. (b) SAGM. (c) SDENet. (d) LLURNet. (e) S2AMSNet. (f) ACB. (g) FDGNet. (h) EHSNet. (i) DTAM. (j) SG-PMG (Ours).}}{8}{figure.caption.6}\protected@file@percent }
+\newlabel{fig:class_houston}{{2}{8}{Classification maps for the Houston 2013 $\to $ Houston 2018 transfer task. (a) Ground truth. (b) SAGM. (c) SDENet. (d) LLURNet. (e) S2AMSNet. (f) ACB. (g) FDGNet. (h) EHSNet. (i) DTAM. (j) SG-PMG (Ours)}{figure.caption.6}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-E}4}Effect of CLIP Semantic Alignment Loss}{8}{subsubsection.4.5.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-F}}Performance with Different Numbers of Labeled Samples}{8}{subsection.4.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-G}}Computational Complexity Analysis}{8}{subsection.4.7}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Classification maps for the Pavia University $\to $ Pavia Center transfer task. (a) Ground truth. (b) SAGM. (c) SDENet. (d) LLURNet. (e) S2AMSNet. (f) ACB. (g) FDGNet. (h) EHSNet. (i) DTAM. (j) SG-PMG (Ours).}}{9}{figure.caption.7}\protected@file@percent }
+\newlabel{fig:class_pavia}{{3}{9}{Classification maps for the Pavia University $\to $ Pavia Center transfer task. (a) Ground truth. (b) SAGM. (c) SDENet. (d) LLURNet. (e) S2AMSNet. (f) ACB. (g) FDGNet. (h) EHSNet. (i) DTAM. (j) SG-PMG (Ours)}{figure.caption.7}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {VII}{\ignorespaces Computational Complexity Comparison}}{9}{table.caption.12}\protected@file@percent }
+\newlabel{tab:complexity}{{VII}{9}{Computational Complexity Comparison}{table.caption.12}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Classification maps for the Dioni $\to $ Loukia transfer task. (a) Ground truth. (b) SAGM. (c) SDENet. (d) LLURNet. (e) S2AMSNet. (f) ACB. (g) FDGNet. (h) EHSNet. (i) DTAM. (j) SG-PMG (Ours).}}{10}{figure.caption.8}\protected@file@percent }
+\newlabel{fig:class_hyrank}{{4}{10}{Classification maps for the Dioni $\to $ Loukia transfer task. (a) Ground truth. (b) SAGM. (c) SDENet. (d) LLURNet. (e) S2AMSNet. (f) ACB. (g) FDGNet. (h) EHSNet. (i) DTAM. (j) SG-PMG (Ours)}{figure.caption.8}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces The t-SNE visualization of generated samples and original samples on three datasets: (a) Houston dataset; (b) Pavia dataset; (c) HyRANK dataset. Different colors represent distinct classes, dots denote original samples, and stars indicate generated samples}}{10}{figure.caption.9}\protected@file@percent }
+\newlabel{fig:tsne}{{5}{10}{The t-SNE visualization of generated samples and original samples on three datasets: (a) Houston dataset; (b) Pavia dataset; (c) HyRANK dataset. Different colors represent distinct classes, dots denote original samples, and stars indicate generated samples}{figure.caption.9}{}}
+\bibstyle{IEEEtran}
+\bibdata{references}
+\bibcite{he2017deep}{1}
+\bibcite{ehsnet2023}{2}
+\bibcite{wang2022domain}{3}
+\bibcite{li2022progressive}{4}
+\bibcite{radford2021learning}{5}
+\bibcite{sdenet2022}{6}
+\bibcite{llurnet2023}{7}
+\bibcite{fdgnet2022}{8}
+\bibcite{s2amsnet2022}{9}
+\bibcite{acb2023}{10}
+\@writefile{toc}{\contentsline {section}{\numberline {V}Conclusion}{11}{section.5}\protected@file@percent }
+\newlabel{sec:conclusion}{{V}{11}{Conclusion}{section.5}{}}
+\@writefile{toc}{\contentsline {section}{References}{11}{section*.14}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{Appendix\nobreakspace  A: Proofs and Gradient Derivations}{11}{section*.15}\protected@file@percent }
+\newlabel{sec:appendix_a}{{A}{11}{\appendixname \nobreakspace \thesectiondis \\* Proofs and Gradient Derivations}{section*.15}{}}
+\newlabel{eq:grad_gamma}{{21}{11}{\appendixname \nobreakspace \thesectiondis \\* Proofs and Gradient Derivations}{equation.21}{}}
+\newlabel{eq:grad_beta}{{22}{11}{\appendixname \nobreakspace \thesectiondis \\* Proofs and Gradient Derivations}{equation.22}{}}
+\gdef \@abspage@last{11}

@@ -113,6 +113,12 @@ group_da.add_argument('--mixture_augmentation', action='store_true',default=Fals
                     help="Random mixes between spectra")
 parser.add_argument('--prompt_type', type=str, default='original', choices=['original', 'ehsnet', 'rich'],
                     help='Type of prompts to use for CLIP text guidance')
+parser.add_argument('--lambda_sem', type=float, default=0.05,
+                    help='Weight for Stage-1 semantic consistency loss (default: 0.05)')
+parser.add_argument('--no_cross_attention', action='store_true', help='Temporarily bypass only the Multi-Head Cross Attention module')
+parser.add_argument('--no_adaln', action='store_true', help='Disable only AdaLN semantic modulation')
+parser.add_argument('--no_semantic_guidance', action='store_true', help='Disable only the semantic guidance branch')
+parser.add_argument('--no_clip_loss', action='store_true', help='Disable only the CLIP semantic alignment loss')
 args = parser.parse_args()
 def evaluate_pre(gnet, dnet, val_loader, gpu):
     ps = []
@@ -163,6 +169,15 @@ def generate_layers(start, n, multiplier):
     return sequence
 
 def experiment(log_dir = ''):
+    print("=====================================")
+    print("Ablation Configuration")
+    print("=====================================")
+    print(f"Cross Attention      : {'OFF' if args.no_cross_attention else 'ON'}")
+    print(f"Adaptive AdaLN       : {'OFF' if args.no_adaln else 'ON'}")
+    print(f"Semantic Guidance    : {'OFF' if args.no_semantic_guidance else 'ON'}")
+    print(f"CLIP Semantic Loss   : {'OFF' if args.no_clip_loss else 'ON'}")
+    print(f"Samples/Class        : {args.sample_nums}")
+    print("=====================================")
     train_res = {
         'best_epoch': 0,
         'best_acc': 0,
@@ -301,8 +316,10 @@ def experiment(log_dir = ''):
     else:
         layers_num = args.layers_num 
         layers = [int((N_BANDS)/layers_num)*(i+1) for i in range(layers_num-1)]+[N_BANDS]
-    g1 = Generator(imdim=N_BANDS, patch_size = hyperparams['patch_size'],layers = layers, dim1 = args.dim1, dim2 = args.dim2, device=device, text_dim=512).to(args.gpu)
-    g2 = Generator(imdim=N_BANDS, patch_size = hyperparams['patch_size'],layers = layers, dim1 = args.dim1, dim2 = args.dim2, device=device, text_dim=512).to(args.gpu)
+    g1 = Generator(imdim=N_BANDS, patch_size = hyperparams['patch_size'],layers = layers, dim1 = args.dim1, dim2 = args.dim2, device=device, text_dim=512,
+                   no_cross_attention=args.no_cross_attention, no_adaln=args.no_adaln, no_semantic_guidance=args.no_semantic_guidance).to(args.gpu)
+    g2 = Generator(imdim=N_BANDS, patch_size = hyperparams['patch_size'],layers = layers, dim1 = args.dim1, dim2 = args.dim2, device=device, text_dim=512,
+                   no_cross_attention=args.no_cross_attention, no_adaln=args.no_adaln, no_semantic_guidance=args.no_semantic_guidance).to(args.gpu)
     d1 = Dis(imdim=N_BANDS, patch_size = hyperparams['patch_size'],layers = layers, proj=args.pro_dim, num_classes=num_classes).to(args.gpu)
     d2 = Dis(imdim=N_BANDS, patch_size = hyperparams['patch_size'],layers = layers, proj=args.pro_dim, num_classes=num_classes).to(args.gpu)
     
@@ -311,6 +328,7 @@ def experiment(log_dir = ''):
     D1_opt = torch.optim.Adam(d1.parameters(), lr=args.pre_lr)
     D2_opt = torch.optim.Adam(d2.parameters(), lr=args.pre_lr)
     con_criterion = SupConLoss(device=args.gpu)
+    stage1_history = []
     if not args.skip_stage1:
       best_acc1 = 0
       best_kappa1 = 0
@@ -324,6 +342,17 @@ def experiment(log_dir = ''):
       best_d2 = None
       pre_epoch = layers_num * args.pre_epoch_per_step
       for epoch in range(pre_epoch):
+          if epoch % args.pre_epoch_per_step == 0:
+              best_acc1 = 0
+              best_acc2 = 0
+          
+          # Initialize Stage 1 batch accumulators
+          epoch_loss_wd = 0.0
+          epoch_loss1_1 = 0.0
+          epoch_loss1_2 = 0.0
+          epoch_loss2_1 = 0.0
+          epoch_loss2_2 = 0.0
+          num_batches = 0
           t1 = time.time()
           g1.train()
           g2.train()
@@ -334,20 +363,25 @@ def experiment(log_dir = ''):
               y = y - 1
               # Index text features by class label for text-guided generation
               batch_text = text_cache.index_by_labels(y)
+              
+              # Construct batch_all_text of shape (B, num_classes, 512) for prompt bank
+              all_class_embeds = text_cache.text_features.to(x.device)
+              batch_all_text = all_class_embeds.unsqueeze(0).repeat(x.size(0), 1, 1)
+              
               with torch.no_grad():  
-                  x_g1, x_down1 = g1(x, current_step, text_features=batch_text)#geneerated vs compresses/downsampled
-                  x_g2, x_down2 = g2(x, current_step, text_features=batch_text)
-              x_tgt1, x_down_tgt1  = g1(x, current_step, text_features=batch_text)
-              x_tgt2, x_down_tgt2  = g2(x, current_step, text_features=batch_text)  
-              p_SD1, z_SD1 = d1(x_down1, current_step = current_step, mode='train')#downsampled classification and features
-              p_ED1, z_ED1 = d1(x_g1, current_step = current_step, mode='train')#generated classification and features    
-              p_SD2, z_SD2 = d2(x_down2, current_step = current_step, mode='train')
-              p_ED2, z_ED2 = d2(x_g2, current_step = current_step, mode='train')
+                  x_g1, x_down1 = g1(x, current_step, text_features=batch_text, all_class_features=batch_all_text)#geneerated vs compresses/downsampled
+                  x_g2, x_down2 = g2(x, current_step, text_features=batch_text, all_class_features=batch_all_text)
+              x_tgt1, x_down_tgt1  = g1(x, current_step, text_features=batch_text, all_class_features=batch_all_text)
+              x_tgt2, x_down_tgt2  = g2(x, current_step, text_features=batch_text, all_class_features=batch_all_text)  
+              p_SD1, z_SD1, clip_proj_SD1 = d1(x_down1, current_step = current_step, mode='train')#downsampled classification and features
+              p_ED1, z_ED1, clip_proj_ED1 = d1(x_g1, current_step = current_step, mode='train')#generated classification and features    
+              p_SD2, z_SD2, clip_proj_SD2 = d2(x_down2, current_step = current_step, mode='train')
+              p_ED2, z_ED2, clip_proj_ED2 = d2(x_g2, current_step = current_step, mode='train')
 
-              p_src0_1, z_whole1 = d1(x, current_step = layers_num, mode='train')#original classification and features
-              p_src0_2, z_whole2 = d2(x, current_step = layers_num, mode='train')
-              p_src1, z_down1 = d1(x_down_tgt1, current_step = current_step, mode='train')#downsampled classification and features
-              p_src2, z_down2 = d2(x_down_tgt2, current_step = current_step, mode='train')
+              p_src0_1, z_whole1, clip_proj_whole1 = d1(x, current_step = layers_num, mode='train')#original classification and features
+              p_src0_2, z_whole2, clip_proj_whole2 = d2(x, current_step = layers_num, mode='train')
+              p_src1, z_down1, _ = d1(x_down_tgt1, current_step = current_step, mode='train')#downsampled classification and features
+              p_src2, z_down2, _ = d2(x_down_tgt2, current_step = current_step, mode='train')
               zwd1 = torch.cat([z_whole1.unsqueeze(1), z_down1.unsqueeze(1)], dim=1)
               zwd2 = torch.cat([z_whole2.unsqueeze(1), z_down2.unsqueeze(1)], dim=1)
               wd_con_loss1 = con_criterion(zwd1, y, adv=False)#l3 loss between original and downsampled features
@@ -362,8 +396,8 @@ def experiment(log_dir = ''):
               src_cls_loss2 = cls_criterion(p_SD2, y.long()) + cls_criterion(p_ED2, y.long())
               
               
-              p_tgt1, z_tgt1 = d1(x_tgt1, current_step = current_step, mode='train')#generated image  classification and features for target domain
-              p_tgt2, z_tgt2 = d2(x_tgt2, current_step = current_step, mode='train')
+              p_tgt1, z_tgt1, clip_proj_tgt1 = d1(x_tgt1, current_step = current_step, mode='train')#generated image  classification and features for target domain
+              p_tgt2, z_tgt2, clip_proj_tgt2 = d2(x_tgt2, current_step = current_step, mode='train')
               
               tgt_cls_loss1 = cls_criterion(p_tgt1, y.long())  #classification loss for generated features
               tgt_cls_loss2 = cls_criterion(p_tgt2, y.long()) 
@@ -404,8 +438,36 @@ def experiment(log_dir = ''):
               loss2_1 = tgt_cls_loss1 + args.lambda_2 * con_loss_adv1 #classification loss for generated features and contrastive loss between generated features and downsampled features of the same class, which encourages the generated features to be close to the downsampled features of the same class in the feature space.
               con_loss_adv2 = con_loss_adv2 / y.unique().shape[0] 
               loss2_2 = tgt_cls_loss2 + args.lambda_2 * con_loss_adv2
+              
+              # Stage-1 Semantic Consistency Loss
+              l_sem1 = torch.tensor(0.0, device=x.device)
+              l_sem2 = torch.tensor(0.0, device=x.device)
+              if g1.text_guided:
+                  # Contrastive Semantic Alignment for generator update (tgt generated target)
+                  logits_tgt1 = logit_scale * clip_proj_tgt1 @ all_class_embeds.t()
+                  l_sem1 = F.cross_entropy(logits_tgt1, y.long())
+                  loss2_1 = loss2_1 + args.lambda_sem * l_sem1
+                  
+                  # Contrastive Semantic Alignment for discriminator update (source real/downsampled)
+                  logits_SD1 = logit_scale * clip_proj_SD1 @ all_class_embeds.t()
+                  l_sem_SD1 = F.cross_entropy(logits_SD1, y.long())
+                  loss1_1 = loss1_1 + args.lambda_sem * l_sem_SD1
+              if g2.text_guided:
+                  # Contrastive Semantic Alignment for generator update (tgt generated target)
+                  logits_tgt2 = logit_scale * clip_proj_tgt2 @ all_class_embeds.t()
+                  l_sem2 = F.cross_entropy(logits_tgt2, y.long())
+                  loss2_2 = loss2_2 + args.lambda_sem * l_sem2
+                  
+                  # Contrastive Semantic Alignment for discriminator update (source real/downsampled)
+                  logits_SD2 = logit_scale * clip_proj_SD2 @ all_class_embeds.t()
+                  l_sem_SD2 = F.cross_entropy(logits_SD2, y.long())
+                  loss1_2 = loss1_2 + args.lambda_sem * l_sem_SD2
+                  
               check_stage1_nan(epoch, loss_wd, loss1_1, loss2_1)
-              print(f'pre_epoch:{epoch}, loss2_1: {loss2_1:.2f}  loss2_2:{loss2_2:.2f}')
+              if g1.text_guided:
+                  print(f'pre_epoch:{epoch}, loss2_1: {loss2_1:.2f} (sem: {l_sem1.item():.4f})  loss2_2:{loss2_2:.2f} (sem: {l_sem2.item():.4f})')
+              else:
+                  print(f'pre_epoch:{epoch}, loss2_1: {loss2_1:.2f}  loss2_2:{loss2_2:.2f}')
               G1_opt.zero_grad()
               loss2_1.backward()
               torch.nn.utils.clip_grad_norm_(d1.parameters(), max_norm=5.0)
@@ -419,19 +481,27 @@ def experiment(log_dir = ''):
               D2_opt.step()
               G2_opt.step()
               
+              # Accumulate batch losses
+              epoch_loss_wd += loss_wd.item()
+              epoch_loss1_1 += loss1_1.item()
+              epoch_loss1_2 += loss1_2.item()
+              epoch_loss2_1 += loss2_1.item()
+              epoch_loss2_2 += loss2_2.item()
+              num_batches += 1
+              
           d1.eval()
           d2.eval()
           
           teacc1, res1 = evaluate_pre(g1, d1, train_loader, args.gpu)
           teacc2, res2 = evaluate_pre(g2, d2, train_loader, args.gpu)
 
-          if best_acc1 < teacc1:
+          if teacc1 >= best_acc1:
               best_acc1 = teacc1
               best_kappa1 = res1["Kappa"]
               best_g1 = g1.state_dict()
               best_d1 = d1.state_dict()
               best_epoch1 = epoch
-          if best_acc2 < teacc2:
+          if teacc2 >= best_acc2:
               best_acc2 = teacc2
               best_kappa2 = res2["Kappa"]
               best_g2 = g2.state_dict()
@@ -443,6 +513,16 @@ def experiment(log_dir = ''):
               d1.load_state_dict(best_d1)
               d2.load_state_dict(best_d2)
           t2 = time.time()
+          
+          # Save Stage 1 epoch history
+          stage1_history.append({
+              'Epoch': epoch + 1,
+              'Loss_WD': epoch_loss_wd / num_batches if num_batches > 0 else 0,
+              'Loss_D1': epoch_loss1_1 / num_batches if num_batches > 0 else 0,
+              'Loss_D2': epoch_loss1_2 / num_batches if num_batches > 0 else 0,
+              'Loss_G1': epoch_loss2_1 / num_batches if num_batches > 0 else 0,
+              'Loss_G2': epoch_loss2_2 / num_batches if num_batches > 0 else 0
+          })
           
     if args.skip_stage1:
         print("SKIPPING STAGE-1")
@@ -484,27 +564,55 @@ def experiment(log_dir = ''):
 
     D_net = discriminator(inchannel=N_BANDS, outchannel=args.pro_dim, num_classes=num_classes, patch_size=hyperparams['patch_size']).to(args.gpu)
 
+    if not args.skip_stage1:
+        # Load only the sub_d[-1] weights of the best Stage-1 discriminator into D_net
+        best_sub_d_state = best_d1 if best_acc1 >= best_acc2 else best_d2
+        last_sub_d_idx = layers_num - 1
+        prefix = f"sub_d.{last_sub_d_idx}."
+        sub_d_state_dict = {}
+        for k, v in best_sub_d_state.items():
+            if k.startswith(prefix):
+                sub_d_state_dict[k[len(prefix):]] = v
+        
+        if len(sub_d_state_dict) > 0:
+            D_net.load_state_dict(sub_d_state_dict)
+            print(f"\n[INFO] Loaded Stage-1 best discriminator (sub_d[{last_sub_d_idx}]) weights into Stage-2 Classifier D_net.")
+        else:
+            print("\n[WARNING] Could not find matching weights for sub_d[-1] in the best discriminator state dict.")
+
     if args.sam_bool:
         D_opt = torch.optim.SGD
-        D_sam = SAM(D_net.parameters(), D_opt,rho=args.sam_rho , lr=args.lr, momentum=0.9)
+        D_sam = SAM(D_net.parameters(), D_opt, rho=args.sam_rho, lr=args.lr, momentum=0.9)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(D_sam.base_optimizer, T_max=args.max_epoch, eta_min=1e-4)
     else:
         D_opt = torch.optim.Adam(D_net.parameters(), lr=args.lr)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(D_opt, T_max=args.max_epoch, eta_min=1e-4)
+
     best_acc = 0
     best_kappa = 0
     best_tpr = None
+    stage2_history = []
     for epoch in range(1,args.max_epoch+1):
         t1 = time.time()    
         loss_list = []
         D_net.train()
         D_net.mode = 'train'
+        
+        # Initialize Stage 2 batch accumulators
+        epoch_loss_total = 0.0
+        epoch_loss_cls = 0.0
+        epoch_loss_clip = 0.0
+        num_batches = 0
         for i, (x, y) in enumerate(train_loader):
             x, y = x.to(args.gpu), y.to(args.gpu)
             y = y - 1
             if args.g_bool:
                 with torch.no_grad():
                     batch_text = text_cache.index_by_labels(y)
-                    x1,_ = g1(x,layers_num, text_features=batch_text)
-                    x2,_ = g2(x,layers_num, text_features=batch_text)
+                    all_class_embeds = text_cache.text_features.to(x.device)
+                    batch_all_text = all_class_embeds.unsqueeze(0).repeat(x.size(0), 1, 1)
+                    x1,_ = g1(x,layers_num, text_features=batch_text, all_class_features=batch_all_text)
+                    x2,_ = g2(x,layers_num, text_features=batch_text, all_class_features=batch_all_text)
                     y1 = y
                     y2 = y
                 x = torch.cat((x,x1,x2),dim=0)
@@ -534,6 +642,12 @@ def experiment(log_dir = ''):
                 torch.nn.utils.clip_grad_norm_(D_net.parameters(), max_norm=5.0)
                 D_sam.second_step(zero_grad=True)
                 loss_list.append(loss.item())
+                
+                # Accumulate Stage 2 batch losses (SAM)
+                epoch_loss_total += loss.item()
+                epoch_loss_cls += cls_loss.item()
+                epoch_loss_clip += clip_loss.item()
+                num_batches += 1
             else:
                 D_opt.zero_grad()
                 predict1, _, clip_proj1 = D_net(x.detach(), mode='train')
@@ -545,6 +659,12 @@ def experiment(log_dir = ''):
                 torch.nn.utils.clip_grad_norm_(D_net.parameters(), max_norm=5.0)
                 D_opt.step()
                 loss_list.append(loss.item())
+                
+                # Accumulate Stage 2 batch losses (non-SAM)
+                epoch_loss_total += loss.item()
+                epoch_loss_cls += cls_loss.item()
+                epoch_loss_clip += clip_loss.item()
+                num_batches += 1
         loss_mean = np.mean(loss_list, 0)
         
         
@@ -563,9 +683,20 @@ def experiment(log_dir = ''):
             train_res['TPR'] = '{:}'.format(np.round(results['TPR'] * 100, 2))
             train_res['F1scores'] = '{:}'.format(results["F1_scores"])
             train_res['kappa'] = '{:.4f}'.format(results["Kappa"])
+        scheduler.step()
         t2 = time.time()
+        
+        # Save Stage 2 epoch history
+        stage2_history.append({
+            'Epoch': epoch,
+            'Loss_Total': epoch_loss_total / num_batches if num_batches > 0 else 0,
+            'Loss_Cls': epoch_loss_cls / num_batches if num_batches > 0 else 0,
+            'Loss_Clip': epoch_loss_clip / num_batches if num_batches > 0 else 0,
+            'OA': taracc
+        })
         if epoch % args.log_interval == 0 or epoch == args.max_epoch:
-            print(f'epoch {epoch}, train {len(train_loader.dataset)}, time {t2 - t1:.2f}, loss_mean {loss_mean:.4f}  /// Test {len(test_loader.dataset)}, best_acc {best_acc:.2f}')
+            current_lr = D_sam.base_optimizer.param_groups[0]['lr'] if args.sam_bool else D_opt.param_groups[0]['lr']
+            print(f'epoch {epoch}, train {len(train_loader.dataset)}, lr {current_lr:.6f}, time {t2 - t1:.2f}, loss_mean {loss_mean:.4f}  /// Test {len(test_loader.dataset)}, best_acc {best_acc:.2f}')
 
     with open(log_dir + '/train_log.txt', 'w+') as f:
         for key, value in train_res.items():
@@ -603,6 +734,57 @@ def experiment(log_dir = ''):
             '{:.2f}'.format(best_aa),
             '{:.4f}'.format(best_kappa)
         ])
+        
+    # Save training history and generate plots
+    plots_dir = os.path.join(log_dir, 'plots')
+    os.makedirs(plots_dir, exist_ok=True)
+    
+    if not args.skip_stage1 and len(stage1_history) > 0:
+        import pandas as pd
+        df1 = pd.DataFrame(stage1_history)
+        df1.to_csv(os.path.join(log_dir, 'stage1_history.csv'), index=False)
+        try:
+            from plotting import save_stage1_plots
+            save_stage1_plots(df1, plots_dir)
+        except Exception as e:
+            print(f"Error plotting Stage 1 losses: {e}")
+            
+    if len(stage2_history) > 0:
+        import pandas as pd
+        df2 = pd.DataFrame(stage2_history)
+        df2.to_csv(os.path.join(log_dir, 'stage2_history.csv'), index=False)
+        try:
+            from plotting import save_stage2_plots
+            save_stage2_plots(df2, plots_dir)
+        except Exception as e:
+            print(f"Error plotting Stage 2 metrics: {e}")
+            
+    # Generate run t-SNE plot and save inside plots folder
+    try:
+        from generate_visualizations import save_run_tsne
+        save_run_tsne(g1, g2, D_net, train_loader, args.gpu, plots_dir, args.source_name)
+    except Exception as e:
+        print(f"Error generating run t-SNE: {e}")
+        
+    # Generate dataset-specific classification map and parameter sensitivity plots specifically for this local run
+    try:
+        src_lower = args.source_name.lower()
+        tar_lower = args.target_name.lower()
+        
+        dataset_key = None
+        if 'pavia' in src_lower or 'pavia' in tar_lower:
+            dataset_key = 'pavia'
+        elif 'houston' in src_lower or 'houston' in tar_lower:
+            dataset_key = 'houston'
+        elif 'dioni' in src_lower or 'loukia' in src_lower or 'hyrank' in src_lower:
+            dataset_key = 'hyrank'
+            
+        if dataset_key:
+            from generate_visualizations import generate_local_run_plots
+            generate_local_run_plots(dataset_key, log_dir, plots_dir)
+    except Exception as e:
+        print(f"Error generating local visualizations: {e}")
+            
     return best_acc, best_kappa
     
 def work():
@@ -610,6 +792,26 @@ def work():
     seeds = [333,111,222,444,555,666,777,888,999,0]
     mean_acc = 0.0
     mean_kappa = 0.0
+    
+    # Process ablation overrides
+    if args.no_clip_loss or args.no_semantic_guidance:
+        args.lambda_sem = 0.0
+        args.lambda_clip = 0.0
+        
+    if args.no_cross_attention:
+        args.save_path = 'results/no_cross_attention/'
+    elif args.no_adaln:
+        args.save_path = 'results/no_adaln/'
+    elif args.no_semantic_guidance:
+        args.save_path = 'results/no_semantic_guidance/'
+    elif args.no_clip_loss:
+        args.save_path = 'results/no_clip_loss/'
+    else:
+        if args.sample_nums in [5, 10, 15, 30]:
+            args.save_path = f'results/sample_{args.sample_nums}/'
+        elif args.sample_nums == 20:
+            args.save_path = 'results/full_model/'
+            
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))#current path of main.py
     now_time = datetime.now()
     time_str = datetime.strftime(now_time, '%Y%m%d%H%M%S')
@@ -631,7 +833,15 @@ def work():
         mean_kappa += kappa
     print(vars(args))
     print(f'{repeat_time} times experiments over, mean acc = {mean_acc/repeat_time}, mean kappa = {mean_kappa/repeat_time}')
-    os.rename(exp_name, exp_name+f'_mean_acc{str(mean_acc)[:6]}_mean_kappa{str(mean_kappa*100)[:6]}')
+    
+    final_name = exp_name+f'_mean_acc{str(mean_acc)[:6]}_mean_kappa{str(mean_kappa*100)[:6]}'
+    os.rename(exp_name, final_name)
+    
+    if args.sample_nums == 20 and not (args.no_cross_attention or args.no_adaln or args.no_semantic_guidance or args.no_clip_loss):
+        import shutil
+        sample_20_name = final_name.replace('results/full_model', 'results/sample_20')
+        os.makedirs(os.path.dirname(sample_20_name), exist_ok=True)
+        shutil.copytree(final_name, sample_20_name, dirs_exist_ok=True)
 
 
 if __name__=='__main__': ##If current file directly executed, then run the work function

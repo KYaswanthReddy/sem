@@ -1,0 +1,247 @@
+\section{Experimental Results and Analysis}
+\label{sec:experiments}
+
+\subsection{Datasets}
+We evaluate our method on three benchmark hyperspectral domain generalization transfer tasks covering different sensors, geographic regions, and spectral configurations.
+
+\subsubsection{Pavia University $\to$ Pavia Center (PaviaU $\to$ PaviaC)}
+Both scenes were acquired by the ROSIS-3 optical sensor over the University of Pavia and the city center of Pavia, Italy. Each scene shares $7$ land cover classes: Tree, Asphalt, Brick, Bitumen, Shadow, Meadow, and Bare Soil. The spectral dimension is cropped to $102$ bands to ensure consistency between domains. Table~\ref{tab:pavia_classes} lists the class names and sample counts.
+
+\begin{table}[h]
+\centering
+\caption{Land Cover Classes and the Number of Samples for the Pavia Dataset.}
+\label{tab:pavia_classes}
+\begin{tabular}{clcc}
+\toprule
+\textbf{No.} & \textbf{Class Name} & \textbf{Pavia University} & \textbf{Pavia Center} \\
+\midrule
+1 & Tree         & 3064  & 7598  \\
+2 & Asphalt      & 6631  & 9248  \\
+3 & Brick        & 3682  & 2685  \\
+4 & Bitumen      & 1330  & 7287  \\
+5 & Shadow       & 947   & 2863  \\
+6 & Meadow       & 18649 & 3090  \\
+7 & Bare Soil    & 5029  & 6584  \\
+\midrule
+  & \textbf{Total} & \textbf{39332} & \textbf{39355} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+\subsubsection{Houston 2013 $\to$ Houston 2018 (Houston13 $\to$ Houston18)}
+Both scenes were captured by the ITRES CASI-1500 sensor over the University of Houston campus, Texas, USA, in $2013$ and $2018$ respectively. The two domains share $7$ common land cover classes and contain $48$ spectral bands. The considerable temporal gap between the two acquisitions introduces significant distribution shift. Table~\ref{tab:houston_classes} lists the class names and sample counts.
+
+\begin{table}[h]
+\centering
+\caption{Land Cover Classes and the Number of Samples for the Houston Dataset.}
+\label{tab:houston_classes}
+\begin{tabular}{clcc}
+\toprule
+\textbf{No.} & \textbf{Class Name} & \textbf{Houston 2013} & \textbf{Houston 2018} \\
+\midrule
+1 & Grass healthy              & 345   & 1353  \\
+2 & Grass stressed             & 365   & 4888  \\
+3 & Trees                      & 365   & 2766  \\
+4 & Water                      & 285   & 22    \\
+5 & Residential buildings      & 319   & 5347  \\
+6 & Non-residential buildings  & 408   & 32459 \\
+7 & Road                       & 443   & 6365  \\
+\midrule
+  & \textbf{Total}             & \textbf{2,530} & \textbf{53200} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+\subsubsection{Dioni $\to$ Loukia (HyRANK)}
+Both scenes were acquired by the Airborne Hyperspectral Scanner (AHS) over two areas of Crete, Greece as part of the HyRANK benchmark. The transfer task contains $12$ shared land cover classes with $176$ spectral bands, posing a challenging geographic shift between two spatially disjoint scenes. Table~\ref{tab:hyrank_classes} lists the class names and sample counts.
+
+\begin{table}[h]
+\centering
+\caption{Land Cover Classes and the Number of Samples for the HyRANK Dataset.}
+\label{tab:hyrank_classes}
+\begin{tabular}{clcc}
+\toprule
+\textbf{No.} & \textbf{Class Name} & \textbf{Dioni} & \textbf{Loukia} \\
+\midrule
+1  & Dense Urban Fabric              & 1262  & 206   \\
+2  & Mineral Extraction Sites        & 204   & 54    \\
+3  & Non Irrigated Arable Land       & 614   & 426   \\
+4  & Fruit Trees                     & 150   & 79    \\
+5  & Olive Groves                    & 1768  & 1107  \\
+6  & Coniferous Forest               & 361   & 422   \\
+7  & Dense Sclerophyllous Vegetation & 5035  & 2996  \\
+8  & Sparse Sclerophyllous Vegetation& 6374  & 2361  \\
+9  & Sparsely Vegetated Areas        & 1754  & 399   \\
+10 & Rocks and Sand                  & 492   & 453   \\
+11 & Water                           & 1612  & 1393  \\
+12 & Coastal Water                   & 398   & 421   \\
+\midrule
+   & \textbf{Total}                  & \textbf{20024} & \textbf{10317} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+\subsection{Experimental Setting}
+All experiments are implemented using PyTorch on an NVIDIA RTX 4090 GPU. The spatial patch size is set to $13 \times 13$ pixels. Unless stated otherwise, we select $10$ labeled samples per class from the source domain for training. In Stage 1, we train the progressive generators for $E_1 = 200$ epochs per step using the Adam optimizer with a learning rate of $0.001$. In Stage 2, we train the final classifier for $E_2 = 800$ epochs using the SAM optimizer with a Cosine Annealing learning rate schedule starting at $\eta = 0.1$, a perturbation radius of $\rho = 0.05$, and a CLIP loss weight of $\lambda_{clip} = 0.1$. Key hyperparameter settings are summarized in Table~\ref{tab:hyperparameters}.
+
+\begin{table}[h]
+\centering
+\caption{Key Hyperparameter Settings of the Proposed Model.}
+\label{tab:hyperparameters}
+\begin{tabular}{lc}
+\toprule
+\textbf{Hyperparameter} & \textbf{Value} \\
+\midrule
+Spatial Patch Size ($H \times W$) & $13 \times 13$ \\
+Supervised PCA Dimension ($dim_1$) & $128$ \\
+3D Conv Channels ($dim_2$) & $8$ \\
+SAM Rho Coefficient ($\rho$) & $0.05$ \\
+CLIP Logit Scale Weight ($\lambda_{clip}$) & $0.1$ \\
+Generator Semantic Alignment Weight ($\lambda_{sem}$) & $0.05$ \\
+Contrastive Loss Penalty ($\lambda_1, \lambda_2$) & $0.01$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Performance Analysis}
+We compare the proposed SG-PMG framework against several state-of-the-art domain generalization and adaptation methods, including SAGM, SDENet, LLURNet, S2AMSNet, ACB, FDGNet, EHSNet, and DTAM. Performance is evaluated using Overall Accuracy (OA\%), Average Accuracy (AA\%), and the Kappa coefficient ($\kappa$).
+
+
+\begin{figure*}[ht]
+\centering
+\includegraphics[width=\textwidth]{figures/classification_houston.png}
+\caption{Classification maps for the Houston 2013 $\to$ Houston 2018 transfer task. (a) Ground truth. (b) SAGM. (c) SDENet. (d) LLURNet. (e) S2AMSNet. (f) ACB. (g) FDGNet. (h) EHSNet. (i) DTAM. (j) SG-PMG (Ours).}
+\label{fig:class_houston}
+\end{figure*}
+
+\begin{figure*}[ht]
+\centering
+\includegraphics[width=\textwidth]{figures/classification_pavia.png}
+\caption{Classification maps for the Pavia University $\to$ Pavia Center transfer task. (a) Ground truth. (b) SAGM. (c) SDENet. (d) LLURNet. (e) S2AMSNet. (f) ACB. (g) FDGNet. (h) EHSNet. (i) DTAM. (j) SG-PMG (Ours).}
+\label{fig:class_pavia}
+\end{figure*}
+
+\begin{figure*}[ht]
+\centering
+\includegraphics[width=\textwidth]{figures/classification_hyrank.png}
+\caption{Classification maps for the Dioni $\to$ Loukia transfer task. (a) Ground truth. (b) SAGM. (c) SDENet. (d) LLURNet. (e) S2AMSNet. (f) ACB. (g) FDGNet. (h) EHSNet. (i) DTAM. (j) SG-PMG (Ours).}
+\label{fig:class_hyrank}
+\end{figure*}
+
+\begin{figure*}[ht]
+\centering
+\includegraphics[width=\textwidth]{figures/tsne.png}
+\caption{The t-SNE visualization of generated samples and original samples on three datasets: (a) Houston dataset; (b) Pavia dataset; (c) HyRANK dataset. Different colors represent distinct classes, dots denote original samples, and stars indicate generated samples}
+\label{fig:tsne}
+\end{figure*}
+
+\subsection{Parameter Analysis}
+We analyze the sensitivity of the proposed framework to the two key regularization weights: $\lambda_1$, which controls the interclass contrastive penalty on discriminator updates, and $\lambda_2$, which controls the adversarial style loss on generator updates. We perform a grid search by sweeping both weights across $\{0.001, 0.005, 0.01, 0.05, 0.1\}$. The overall accuracy remains robust across a wide range of values, with peak performance consistently achieved near the balanced region $\lambda_1 = 0.01$ and $\lambda_2 = 0.01$ for all three benchmark tasks. Significant deviations, particularly increasing weights past $0.05$, lead to minor accuracy drops due to over-penalization of the projected feature representations.
+
+\subsection{Ablations and Analysis}
+\label{sec:ablation}
+To systematically evaluate the contribution of each component, we conduct controlled ablation experiments on the PaviaU $\to$ PaviaC transfer task. We independently disable one component at a time while keeping all other components and hyperparameters fixed. The ablation configurations are: (1) full proposed model, (2) without semantic guidance (\textit{w/o} SG), (3) without multi-head cross attention (\textit{w/o} CA), (4) without adaptive AdaLN (\textit{w/o} AdaLN), and (5) without CLIP semantic alignment loss (\textit{w/o} CLIP). Quantitative results are reported in Table~\ref{tab:ablation_components}.
+
+\begin{table}[h]
+\centering
+\caption{Ablation Study of Individual Components on PaviaU $\to$ PaviaC.
+``\textit{w/o}'' denotes removal of the corresponding component.}
+\label{tab:ablation_components}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Configuration} & \textbf{OA (\%)} & \textbf{AA (\%)} & \textbf{$\kappa$ (\%)} \\
+\midrule
+\textbf{Full Model (Proposed)} & \textbf{--} & \textbf{--} & \textbf{--} \\
+\textit{w/o} Semantic Guidance & -- & -- & -- \\
+\textit{w/o} Cross Attention & -- & -- & -- \\
+\textit{w/o} Adaptive AdaLN & -- & -- & -- \\
+\textit{w/o} CLIP Loss & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{Classification Performance on PaviaU $\to$ PaviaC
+Under Varying Numbers of Labeled Source-Domain Samples Per Class.}
+\label{tab:ablation_samples}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Samples/Class} & \textbf{OA (\%)} & \textbf{AA (\%)} & \textbf{$\kappa$ (\%)} \\
+\midrule
+5  & -- & -- & -- \\
+10 & -- & -- & -- \\
+15 & -- & -- & -- \\
+20 & -- & -- & -- \\
+30 & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Effect of Semantic Guidance}
+Semantic guidance integrates class-level language descriptions from the Prompt Bank into the progressive generation process. Removing the entire semantic guidance branch (\textit{w/o} SG) forces the generator to rely solely on spatial-spectral statistics without any language-driven class conditioning. The performance degradation observed in Table~\ref{tab:ablation_components} demonstrates that semantic guidance is a critical source of domain-invariant supervisory signal, as it constrains the generated features to remain semantically consistent with their source-domain categories.
+
+\subsubsection{Effect of Multi-Head Cross Attention}
+The multi-head cross attention module bridges spatial image features and class-level text embeddings by computing cross-modal attention between the visual sequence and the prompt embedding matrix. Disabling this module (\textit{w/o} CA) eliminates the explicit interaction between textual semantic descriptions and spatial HSI features during progressive generation. As shown in Table~\ref{tab:ablation_components}, the removal of cross attention leads to a measurable reduction in OA, AA, and Kappa, confirming that precise semantic-visual feature alignment is beneficial for generating transferable representations.
+
+\subsubsection{Effect of Adaptive AdaLN}
+The adaptive 3D layer normalization (AdaLN3d) modulates intermediate 3D convolutional feature representations using a class semantic conditioning vector. Disabling AdaLN (\textit{w/o} AdaLN) reduces the generator to a standard progressive 3D CNN without class-conditioned normalization. The corresponding performance drop in Table~\ref{tab:ablation_components} indicates that adaptive semantic conditioning of intermediate feature normalization contributes meaningfully to cross-domain generalization.
+
+\subsubsection{Effect of CLIP Semantic Alignment Loss}
+The CLIP semantic alignment loss $\mathcal{L}_{sem}$ enforces cross-modal consistency by aligning the CLIP projections of HSI patch features with the corresponding text prompt embeddings. Removing this loss (\textit{w/o} CLIP) eliminates the cross-modal supervisory signal without affecting the generator architecture. The results in Table~\ref{tab:ablation_components} confirm that semantic alignment is a complementary objective that improves the cross-domain performance of the final classifier.
+
+\subsection{Performance with Different Numbers of Labeled Samples}
+To evaluate the sensitivity of the proposed framework to the number of labeled source-domain training samples, we vary the samples per class from $5$ to $30$ and report the corresponding performance on the PaviaU $\to$ PaviaC transfer task in Table~\ref{tab:ablation_samples}. Classification accuracy improves consistently as the number of labeled samples increases, indicating that the framework effectively utilizes additional source-domain information. Notably, the model maintains reasonable performance even under extreme scarcity (e.g., $5$ samples per class), which reflects the regularization benefit of semantic guidance and SAM-based flat-minima optimization.
+
+\subsection{Computational Complexity Analysis}
+The computational efficiency of the proposed framework is primarily determined by the progressive spectral decomposition and the 3D convolution operations in the generator. Since the spatial resolution of all inputs is fixed at $H = W = 13$ pixels, the 3D convolution operations remain computationally lightweight. The CLIP text embeddings $\mathbf{E}_{txt}$ are computed once and cached before training begins, eliminating repeated forward passes through the heavy text encoder during training iterations. During Stage 2 inference, the progressive generators and CLIP encoder are discarded entirely, so the inference cost is equivalent to a standard 2D convolutional classifier. The overall training time scales linearly with the number of progressive stages $K$ and the number of training epochs per stage $E_1$.
+
+\begin{table*}[t]
+\centering
+\caption{Computational Complexity Comparison}
+\label{tab:complexity}
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}
+\hline
+Methods & SAGM & SDENet & LLURNet & S2AMSNet & ACB & FDGNet & EHSnet & DTAM & PMGDG \\
+\hline
+\multicolumn{10}{|c|}{Houston} \\
+\hline
+Parms(M) & 0.43 & 1.75 & 0.55 & 1.03 & \textbf{0.02} & 3.14 & 33.86 & 2.22 & 10.32 \\
+\hline
+Training time(min) & 16.57 & 36.13 & \textbf{13.33} & 13.73 & 29.75 & 34.73 & 189.63 & 39.64 & 26.80 \\
+\hline
+FLOPs(M) & 4.34 & 4.34 & 4.34 & 71.48 & \textbf{0.34} & 4.34 & 64.60 & 2.08 & 4.34 \\
+\hline
+Inference time(s) & \textbf{1.21} & 5.23 & 1.74 & 1.82 & 5.88 & 4.95 & 56.89 & 12.56 & 1.25 \\
+\hline
+\multicolumn{10}{|c|}{Pavia} \\
+\hline
+Parms(M) & 0.46 & 2.40 & 0.57 & 1.16 & \textbf{0.02} & 4.04 & 34.47 & 2.23 & 10.94 \\
+\hline
+Training time(min) & 28.34 & 46.27 & 14.73 & \textbf{14.60} & 35.40 & 46.73 & 156.8 & 42.75 & 33.72 \\
+\hline
+FLOPs(M) & 8.10 & 8.10 & 8.10 & 107.07 & \textbf{0.47} & 8.10 & 206.12 & 4.41 & 8.10 \\
+\hline
+Inference time(s) & 2.05 & 6.71 & 2.09 & 2.17 & 7.01 & 6.79 & 46.48 & 12.66 & \textbf{2.02} \\
+\hline
+\multicolumn{10}{|c|}{HyRANK} \\
+\hline
+Parms(M) & 0.51 & 3.28 & 0.64 & 1.37 & \textbf{0.02} & 5.58 & 36.01 & 2.25 & 11.80 \\
+\hline
+Training time(min) & 11.04 & 20.13 & \textbf{5.53} & 6.27 & 14.70 & 18.31 & 200.36 & 18.64 & 16.83 \\
+\hline
+FLOPs(M) & 13.26 & 13.26 & 13.26 & 103.02 & \textbf{0.64} & 13.26 & 518.95 & 7.62 & 13.26 \\
+\hline
+Inference time(s) & 0.82 & 2.76 & \textbf{0.79} & 0.81 & 2.79 & 2.53 & 59.80 & 5.41 & 0.81 \\
+\hline
+\end{tabular}
+\end{table*}
+
+\clearpage
+

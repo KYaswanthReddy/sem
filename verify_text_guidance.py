@@ -84,22 +84,52 @@ gen.train()
 
 x_full = torch.randn(4, N_BANDS, 13, 13)
 text_batch = torch.randn(4, 512)
+num_classes = 7
+all_class_text = F.normalize(torch.randn(7, 512))
 
+# (A) Center-class-only conditioning (original behaviour)
 for step in [1, 3, 5, 10]:
     x_g, x_down = gen(x_full, current_step=step, text_features=text_batch)
     expected_dim = layers[step - 1]
-    print(f"  Step {step:2d}: x_g={x_g.shape}, x_down={x_down.shape}  (expected channels={expected_dim})")
+    print(f"  [center-class] Step {step:2d}: x_g={x_g.shape}, x_down={x_down.shape}  (expected channels={expected_dim})")
     assert x_g.shape == (4, expected_dim, 13, 13), f"x_g shape wrong at step {step}"
     if step < len(layers):
         assert x_down.shape == (4, expected_dim, 13, 13), f"x_down shape wrong at step {step}"
     else:
         assert x_down.shape == (4, N_BANDS, 13, 13)
-print("  ✓ All progressive steps correct")
+print("  ✓ All progressive steps correct (center-class conditioning)")
+
+# (B) All-class prompt bank conditioning (Improvement 3)
+batch_all_class = all_class_text.unsqueeze(0).repeat(4, 1, 1)  # (B, num_classes, 512)
+for step in [1, 5, 10]:
+    x_g, x_down = gen(x_full, current_step=step, text_features=text_batch, all_class_features=batch_all_class)
+    expected_dim = layers[step - 1]
+    print(f"  [prompt-bank]  Step {step:2d}: x_g={x_g.shape}, x_down={x_down.shape}")
+    assert x_g.shape == (4, expected_dim, 13, 13), f"x_g shape wrong at step {step} (prompt bank)"
+print("  ✓ All progressive steps correct (prompt bank conditioning)")
+
+# (C) Stage-1 Semantic Consistency: sub-discriminator CLIP Projection Head
+from model.pmg import Dis
+d_stage1_test = Dis(imdim=N_BANDS, patch_size=13, layers=layers, proj=128, num_classes=num_classes)
+d_stage1_test.train()
+
+for step in [1, 5, 10]:
+    x_g, _ = gen(x_full, current_step=step, text_features=text_batch, all_class_features=batch_all_class)
+    clss, proj, clip_proj = d_stage1_test(x_g, current_step=step, mode='train')
+    print(f"  [clip_proj]    Step {step:2d}: clip_proj={clip_proj.shape}  (expected (4, 512))")
+    assert clip_proj.shape == (4, 512), f"Discriminator CLIP projection shape wrong at step {step}"
+    # Verify cosine similarity computation works
+    cos_sim = F.cosine_similarity(clip_proj, text_batch, dim=-1)
+    l_sem = 1.0 - cos_sim.mean()
+    assert not torch.isnan(l_sem), f"L_sem is NaN at step {step}"
+    print(f"            L_sem={l_sem.item():.4f}")
+print("  ✓ Discriminator CLIP projection and L_sem computation correct")
 
 # Stage 2 mode (current_step > layers_num)
 x_down_only = gen(x_full, current_step=len(layers) + 1)
 print(f"  Stage 2 mode: x_down={x_down_only.shape}")
 print("  ✓ Stage 2 mode works")
+
 
 # ── 4. Discriminator (Stage 2) ──
 print("\n" + "=" * 60)

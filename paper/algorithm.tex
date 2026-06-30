@@ -1,0 +1,48 @@
+\subsection{Training Algorithm}
+\label{sec:algorithm}
+
+Algorithm~\ref{alg:training} summarizes the complete two-stage training procedure of the proposed SG-PMG framework.
+
+\begin{algorithm}[H]
+\caption{Two-Stage Training Procedure of SG-PMG}
+\label{alg:training}
+\begin{algorithmic}[1]
+\REQUIRE Source dataset $\mathcal{D}_s = \{(\mathbf{x}_i, y_i)\}$, Target dataset $\mathcal{D}_t = \{\mathbf{x}_j^t\}$, target class prompt bank $\mathbf{E}_{txt}$, batch size $B$, stage epochs $E_1, E_2$, progressive steps $K$, scaling weights $\lambda_1, \lambda_2, \lambda_{sem}, \lambda_{clip}$.
+\ENSURE Optimized classifier $D_{net}$.
+
+\STATE Load CLIP model on device; compute cached text features $\mathbf{E}_{txt}$.
+\STATE Initialize progressive networks $g_1, g_2, d_1, d_2$.
+
+\STATE \COMMENT{\textbf{STAGE 1: Progressive Generator Pre-training}}
+\FOR{epoch = 1 \TO $E_1 \cdot K$}
+    \STATE Calculate current progressive step: $k = \lfloor \text{epoch}/E_1 \rfloor + 1$.
+    \FOR{each mini-batch $(\mathbf{X}, \mathbf{y}) \in \mathcal{D}_s$}
+        \STATE Extract class prompts: $\mathbf{e}_y = \text{Index}(\mathbf{E}_{txt}, \mathbf{y})$.
+        \STATE $\mathbf{X}_g, \mathbf{X}_{down} \leftarrow \text{Forward}(g_1, \mathbf{X}, k, \mathbf{e}_y, \mathbf{E}_{txt})$.
+        \STATE Compute downsampled consistency loss: $\mathcal{L}_{wd} \leftarrow \mathcal{L}_{con}([\mathbf{z}_{whole} \parallel \mathbf{z}_{down}], \mathbf{y})$.
+        \STATE Compute discriminator loss $\mathcal{L}_{1\_1}$ using class and semantic losses.
+        \STATE Compute generator style adversarial loss: $\mathcal{L}_{2\_1} \leftarrow \text{CE}(\mathbf{p}_{tgt}, \mathbf{y}) + \lambda_2 \mathcal{L}_{adv} + \lambda_{sem} \mathcal{L}_{sem}$.
+        \STATE Update $d_1$ and $g_1$ parameters using Adam optimizers.
+        \STATE Repeat updates for $d_2$ and $g_2$.
+    \ENDFOR
+\ENDFOR
+
+\STATE \COMMENT{\textbf{STAGE 2: SAM-Guided Classifier Tuning}}
+\STATE Initialize standalone classifier $D_{net}$; load weights from the final pre-trained sub-discriminator $d_1[-1]$.
+\FOR{epoch = 1 \TO $E_2$}
+    \FOR{each mini-batch $(\mathbf{X}, \mathbf{y}) \in \mathcal{D}_s$}
+        \STATE $\mathbf{X}_1 \leftarrow g_1(\mathbf{X}, K, \mathbf{e}_y)$, $\mathbf{X}_2 \leftarrow g_2(\mathbf{X}, K, \mathbf{e}_y)$ (in evaluation mode).
+        \STATE Concatenate tensors: $\mathbf{X}_{total} \leftarrow [\mathbf{X} \parallel \mathbf{X}_1 \parallel \mathbf{X}_2]^T$, $\mathbf{y}_{total} \leftarrow [\mathbf{y} \parallel \mathbf{y} \parallel \mathbf{y}]^T$.
+        \STATE $\mathbf{p}, \mathbf{z}_{clip} \leftarrow D_{net}(\mathbf{X}_{total})$.
+        \STATE Compute classification and CLIP semantic losses: $\mathcal{L} \leftarrow \text{CE}(\mathbf{p}, \mathbf{y}_{total}) + \lambda_{clip} \mathcal{L}_{clip}(\mathbf{z}_{clip}, \mathbf{y}_{total})$.
+        \STATE Backward pass: Compute gradients $\mathbf{g} = \nabla_{\mathbf{w}} \mathcal{L}$.
+        \STATE Compute SAM parameter perturbation: $\mathbf{\epsilon} = \rho \frac{\mathbf{g}}{\|\mathbf{g}\|_2}$.
+        \STATE Shift parameters: $\mathbf{w} \leftarrow \mathbf{w} + \mathbf{\epsilon}$.
+        \STATE Re-evaluate loss on shifted parameters: $\mathcal{L}_{sharp} \leftarrow D_{net}(\mathbf{X}_{total})$.
+        \STATE Backward pass: Compute gradients $\mathbf{g}_{sharp} = \nabla_{\mathbf{w}} \mathcal{L}_{sharp}$.
+        \STATE Update parameters: $\mathbf{w} \leftarrow \mathbf{w} - \eta \cdot \mathbf{g}_{sharp}$.
+    \ENDFOR
+\ENDFOR
+\RETURN $D_{net}$.
+\end{algorithmic}
+\end{algorithm}
