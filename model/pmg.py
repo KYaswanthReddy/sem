@@ -205,7 +205,7 @@ class Generator(nn.Module):
             self.upsamples.append(nn.Conv2d(in_channels=self.dims[i], out_channels=self.dims[i+1], kernel_size=1) )
         for i in range(self.layers_num):
             self.sub_g.append(Generator_3DCNN_SupCompress_pca(
-                imdim=self.dims[i], imsize=[13, 13], device=device, dim1=dim1, dim2=dim2, text_dim=text_dim,
+                imdim=self.dims[i], imsize=[self.patch_size, self.patch_size], device=device, dim1=dim1, dim2=dim2, text_dim=text_dim,
                 no_cross_attention=no_cross_attention, no_adaln=no_adaln, no_semantic_guidance=no_semantic_guidance
             ))
         
