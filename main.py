@@ -86,6 +86,8 @@ group_train.add_argument('--training_sample_ratio', type=float, default=0.8,
                     help='training sample ratio')
 group_train.add_argument('--re_ratio', type=int, default=5,
                     help='multiple of of data augmentation')
+group_train.add_argument('--sampling_mode', type=str, default='random', choices=['random', 'kmeans'],
+                    help='how to select the training few-shot samples')
 group_train.add_argument('--seed', type=int, default=333,
                     help='random seed ')
 group_train.add_argument('--gpu', type=int, default=0,
@@ -287,8 +289,32 @@ def experiment(log_dir = ''):
   
     selected_indices = []
     samples_per_class = args.sample_nums  
-    for label, indices in class_indices.items():
-        selected_indices += random.sample(indices, samples_per_class)
+    if args.sampling_mode == 'kmeans':
+        from sklearn.cluster import KMeans
+        print(f"\n[INFO] Selecting {samples_per_class} representative samples per class using K-Means Diversity Centroid Clustering...")
+        for label, indices in class_indices.items():
+            if len(indices) <= samples_per_class:
+                selected_indices += indices
+            else:
+                # Extract spectral signatures of center pixels
+                features = []
+                for idx in indices:
+                    x_c, y_c = train_dataset.indices[idx]
+                    features.append(img_src_con[x_c, y_c, :])
+                features = np.stack(features) # (N_candidates, N_BANDS)
+                
+                # Fit KMeans to get samples_per_class clusters
+                kmeans = KMeans(n_clusters=samples_per_class, random_state=args.seed, n_init=10)
+                kmeans.fit(features)
+                
+                # Select nearest neighbor for each centroid
+                for center in kmeans.cluster_centers_:
+                    distances = np.linalg.norm(features - center, axis=1)
+                    best_local_idx = np.argmin(distances)
+                    selected_indices.append(indices[best_local_idx])
+    else:
+        for label, indices in class_indices.items():
+            selected_indices += random.sample(indices, samples_per_class)
    
     # print(selected_indices)
     subset = torch.utils.data.Subset(train_dataset, selected_indices)
